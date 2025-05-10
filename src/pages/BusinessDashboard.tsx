@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { PlusCircle, Trash2, BarChart2, Package } from 'lucide-react';
+import { PlusCircle, Trash2, BarChart2, Package, ChartBarIcon, ChartLineIcon } from 'lucide-react';
 import Header from '@/components/Header';
 import BottomNavigation from '@/components/BottomNavigation';
 import { useFoodListings } from '@/contexts/FoodListingContext';
@@ -8,12 +8,42 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import {
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+import { 
+  Table,
+  TableHeader,
+  TableRow,
+  TableHead,
+  TableBody,
+  TableCell
+} from '@/components/ui/table';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent
+} from '@/components/ui/chart';
+import SearchBar from '@/components/SearchBar';
 
 const BusinessDashboard: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { businessItems, deleteListing } = useFoodListings();
   const [activeTab, setActiveTab] = useState('inventory');
+  const [searchTerm, setSearchTerm] = useState('');
   
   if (!user || user.role !== 'business') {
     return (
@@ -32,6 +62,14 @@ const BusinessDashboard: React.FC = () => {
     );
   }
   
+  // Filter items based on search term
+  const filteredItems = searchTerm 
+    ? businessItems.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.description.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : businessItems;
+  
   const handleDelete = async (id: string) => {
     try {
       await deleteListing(id);
@@ -44,6 +82,47 @@ const BusinessDashboard: React.FC = () => {
   const handleAddItem = () => {
     navigate('/add-item');
   };
+
+  // Prepare analytics data
+  const currentMonth = new Date().getMonth();
+  
+  // Generate mock monthly revenue data
+  const monthlyRevenueData = Array(6).fill(0).map((_, index) => {
+    const monthIndex = (currentMonth - 5 + index) % 12;
+    const monthName = new Date(0, monthIndex).toLocaleString('default', { month: 'short' });
+    
+    // Generate realistic values with a slight upward trend and some randomness
+    const baseValue = 800 + (index * 100);
+    const randomFactor = Math.random() * 300 - 150; // Random variation between -150 and 150
+    const value = Math.max(0, Math.round(baseValue + randomFactor));
+    
+    return {
+      name: monthName,
+      revenue: value,
+    };
+  });
+
+  // Generate mock category distribution data
+  const categoryData = [
+    { name: 'Bakery', value: businessItems.filter(item => item.category === 'Bakery').length || 3 },
+    { name: 'Fresh', value: businessItems.filter(item => item.category === 'Fresh').length || 2 },
+    { name: 'Dairy', value: businessItems.filter(item => item.category === 'Dairy').length || 1 },
+    { name: 'Prepared', value: businessItems.filter(item => item.category === 'Prepared').length || 2 },
+  ];
+
+  // Generate mock weekly sales data
+  const weeklyData = [
+    { day: 'Mon', sales: 12 },
+    { day: 'Tue', sales: 19 },
+    { day: 'Wed', sales: 15 },
+    { day: 'Thu', sales: 22 },
+    { day: 'Fri', sales: 30 },
+    { day: 'Sat', sales: 18 },
+    { day: 'Sun', sales: 10 },
+  ];
+
+  // Colors for the pie chart
+  const COLORS = ['#F97316', '#fb923c', '#fdba74', '#ffedd5'];
 
   return (
     <div className="app-container pb-20">
@@ -116,9 +195,15 @@ const BusinessDashboard: React.FC = () => {
             </button>
           </div>
           
+          <SearchBar 
+            value={searchTerm}
+            onChange={setSearchTerm}
+            placeholder="Search your inventory..."
+          />
+          
           <div className="px-4 space-y-3">
-            {businessItems.length > 0 ? (
-              businessItems.map((item) => (
+            {filteredItems.length > 0 ? (
+              filteredItems.map((item) => (
                 <div key={item.id} className="bg-white rounded-lg p-3 flex items-center">
                   <img 
                     src={item.image}
@@ -173,11 +258,136 @@ const BusinessDashboard: React.FC = () => {
       )}
       
       {activeTab === 'analytics' && (
-        <div className="p-4 text-center py-12">
-          <p className="text-neutralGray mb-2">Analytics coming soon</p>
-          <p className="text-xs text-neutralGray">
-            Gain insights into your sales, customer trends, and inventory management
-          </p>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold mb-4">Business Analytics</h3>
+          
+          <div className="mb-6 bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="text-md font-medium mb-3">Monthly Revenue</h4>
+            <div className="h-64">
+              <ChartContainer
+                config={{
+                  revenue: { label: "Revenue", color: "#F97316" }
+                }}
+              >
+                <BarChart data={monthlyRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" />
+                  <YAxis 
+                    tickFormatter={(value) => `$${value}`} 
+                    width={45}
+                  />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent 
+                        labelKey="name" 
+                        formatter={(value) => [`$${value}`, "Revenue"]} 
+                      />
+                    }
+                  />
+                  <Bar dataKey="revenue" fill="#F97316" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ChartContainer>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="text-md font-medium mb-3">Product Categories</h4>
+              <div className="h-56">
+                <ChartContainer
+                  config={{
+                    value: { color: "#F97316" }
+                  }}
+                >
+                  <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <Pie
+                      data={categoryData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      outerRadius={70}
+                      fill="#F97316"
+                      dataKey="value"
+                    >
+                      {categoryData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, name) => [`${value} items`, name]}
+                        />
+                      }
+                    />
+                  </PieChart>
+                </ChartContainer>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-lg p-4 shadow-sm">
+              <h4 className="text-md font-medium mb-3">Weekly Sales</h4>
+              <div className="h-56">
+                <ChartContainer
+                  config={{
+                    sales: { label: "Items Sold", color: "#F97316" }
+                  }}
+                >
+                  <LineChart data={weeklyData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" />
+                    <YAxis width={30} />
+                    <ChartTooltip
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value) => [`${value} items`, "Sold"]}
+                        />
+                      }
+                    />
+                    <Line type="monotone" dataKey="sales" stroke="#F97316" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ChartContainer>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-lg p-4 shadow-sm">
+            <h4 className="text-md font-medium mb-3">Top Selling Items</h4>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Item Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Units Sold</TableHead>
+                    <TableHead className="text-right">Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {businessItems.slice(0, 3).map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.category}</TableCell>
+                      <TableCell className="text-right">{Math.floor(Math.random() * 20) + 10}</TableCell>
+                      <TableCell className="text-right">${(item.discountedPrice * (Math.floor(Math.random() * 20) + 10)).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                  {businessItems.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center py-4 text-neutralGray">
+                        No data available
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+          
+          <div className="mt-6 text-sm text-neutralGray text-center px-4">
+            <p>Data shown is for demonstration purposes. Connect your payment provider to see actual revenue analytics.</p>
+          </div>
         </div>
       )}
       
