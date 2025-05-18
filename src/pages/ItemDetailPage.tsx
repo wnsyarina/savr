@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Clock, MapPin, Building, ChevronRight, Share2 } from 'lucide-react';
@@ -40,8 +39,7 @@ const ItemDetailPage: React.FC = () => {
   );
   
   const handleBuy = () => {
-    toast.success('Item added to cart');
-    // In a real app, this would add the item to the cart or process the order
+    navigate('/payment');
   };
   
   const handleShare = () => {
